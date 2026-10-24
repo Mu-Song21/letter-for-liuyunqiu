@@ -1,23 +1,17 @@
-"""扫描 pics/，生成 photos.js —— 会保留已有顺序，新照片只追加到末尾。
-
-用法：
-  1. 把她的新照片放进 pics/
-  2. 运行：python scan_photos.py
-  3. 刷新页面
-
-手动改顺序：编辑 photos.js 里数组的先后。
-拖动调位置：页面里拖卡片（浏览器会记住）。
-"""
+"""扫描 pics/，生成缩略图 + photos.js（保留顺序，新照片追加末尾）"""
 from pathlib import Path
 import json
 import re
 import time
+from PIL import Image, ImageOps
 
 ROOT = Path(__file__).resolve().parent
 PICS = ROOT / "pics"
+THUMBS = PICS / "thumbs"
 OUT = ROOT / "photos.js"
 EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 SKIP_NAMES = {"anime-couple", "placeholder", "album cover", "icon"}
+MAX_SIDE = 420
 
 
 def strip_query(path: str) -> str:
@@ -25,7 +19,6 @@ def strip_query(path: str) -> str:
 
 
 def load_existing_order():
-    """读取 photos.js 里已有的路径顺序（去掉 ?v=）。"""
     if not OUT.exists():
         return []
     text = OUT.read_text(encoding="utf-8")
@@ -36,7 +29,22 @@ def load_existing_order():
         arr = json.loads(m.group(1))
     except json.JSONDecodeError:
         return []
-    return [strip_query(p) for p in arr]
+    # normalize thumbs/xxx or pics/xxx -> basename key
+    order = []
+    for p in arr:
+        name = Path(strip_query(p)).name
+        order.append(name)
+    return order
+
+
+def make_thumb(src: Path) -> Path:
+    THUMBS.mkdir(exist_ok=True)
+    out = THUMBS / (src.stem + ".jpg")
+    im = Image.open(src)
+    im = ImageOps.exif_transpose(im).convert("RGB")
+    im.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
+    im.save(out, "JPEG", quality=72, optimize=True, progressive=True)
+    return out
 
 
 def main():
@@ -46,35 +54,37 @@ def main():
             continue
         if any(s in f.stem.lower() for s in SKIP_NAMES):
             continue
-        disk[f"pics/{f.name}"] = f
+        if f.parent.name == "thumbs":
+            continue
+        disk[f.name] = f
 
-    old_order = load_existing_order()
-    ordered = []
+    old_names = load_existing_order()
+    ordered_files = []
     seen = set()
-
-    # 1) 先按旧顺序保留还存在的文件
-    for rel in old_order:
-        if rel in disk:
-            ordered.append(rel)
-            seen.add(rel)
-
-    # 2) 新文件追加到末尾（按文件名）
-    for rel in sorted(disk.keys()):
-        if rel not in seen:
-            ordered.append(rel)
-            seen.add(rel)
+    for name in old_names:
+        # old list may be photo-001.jpg
+        if name in disk:
+            ordered_files.append(disk[name])
+            seen.add(name)
+    for name in sorted(disk.keys()):
+        if name not in seen:
+            ordered_files.append(disk[name])
+            seen.add(name)
 
     ver = int(time.time())
-    paths = [f"{rel}?v={ver}" for rel in ordered]
+    paths = []
+    for src in ordered_files:
+        thumb = make_thumb(src)
+        paths.append(f"pics/thumbs/{thumb.name}?v={ver}")
+
     OUT.write_text(
-        "// 【保留顺序】已有照片顺序不变，新照片追加在末尾\n"
-        "// 手动换序：上下移动下面的路径即可\n"
+        "// 【保留顺序】缩略图加速手机加载；原图仍在 pics/\n"
         "window.LOVE_PHOTOS = "
         + json.dumps(paths, ensure_ascii=False, indent=2)
         + ";\n",
         encoding="utf-8",
     )
-    print(f"Kept order: {len(old_order)} existing, total {len(paths)} -> {OUT.name}")
+    print(f"Thumbs ready: {len(paths)} -> {OUT.name}")
 
 
 if __name__ == "__main__":

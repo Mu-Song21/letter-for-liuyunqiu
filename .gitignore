@@ -9,3 +9,7 @@ Thumbs.db
 debug*.png
 seq-*.png
 _ref*.html
+# 原图较大，线上用 thumbs；本地仍保留 pics/photo-*.jpg
+# 若要仓库更轻，可取消下一行注释：
+# pics/photo-*.jpg
+# pics/photo-*.png

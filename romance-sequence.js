@@ -194,8 +194,11 @@
   function layoutPhotoHeart(photos, w, h) {
     const n = photos.length;
     const minSide = Math.min(w, h);
-    // 故意做大，允许互相叠一点
-    const size = Math.max(78, Math.min(120, Math.floor(minSide / 6.2)));
+    const isMobile = w <= 768;
+    // 手机稍小一点，减少重叠绘制压力
+    const size = isMobile
+      ? Math.max(58, Math.min(88, Math.floor(minSide / 6.8)))
+      : Math.max(78, Math.min(120, Math.floor(minSide / 6.2)));
     const cx = w / 2;
     const cy = h / 2 - h * 0.02;
     const outerScale = Math.max(10, (minSide / 2 - size * 0.28) / 17);
@@ -332,6 +335,8 @@
     img.src = src;
     img.alt = '';
     img.draggable = false;
+    img.decoding = 'async';
+    img.loading = 'eager';
     back.appendChild(img);
 
     inner.appendChild(front);
@@ -574,16 +579,17 @@
 
     /** 网格铺满 + 轻微抖动，保证边角也有窗口 */
     buildFullscreenPopupSlots(w, h) {
-      const cellW = 138;
-      const cellH = 88;
+      const isMobile = w <= 768;
+      const cellW = isMobile ? 160 : 138;
+      const cellH = isMobile ? 100 : 88;
       const cols = Math.ceil(w / cellW) + 1;
       const rows = Math.ceil(h / cellH) + 1;
       const slots = [];
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          const pw = 118 + Math.floor(Math.random() * 48);
-          const ph = 64 + Math.floor(Math.random() * 22);
+          const pw = (isMobile ? 108 : 118) + Math.floor(Math.random() * (isMobile ? 36 : 48));
+          const ph = (isMobile ? 58 : 64) + Math.floor(Math.random() * 22);
           // 交错排列，更密
           const stagger = r % 2 === 0 ? 0 : cellW * 0.35;
           let left = c * cellW - cellW * 0.25 + stagger + (Math.random() * 36 - 18);
@@ -594,8 +600,8 @@
         }
       }
 
-      // 再补一批纯随机，填缝、增加层次
-      const extras = Math.floor(slots.length * 0.35);
+      // 再补一批纯随机，填缝、增加层次（手机少补一些）
+      const extras = Math.floor(slots.length * (isMobile ? 0.15 : 0.35));
       for (let i = 0; i < extras; i++) {
         const pw = 110 + Math.floor(Math.random() * 55);
         const ph = 60 + Math.floor(Math.random() * 24);

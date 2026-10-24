@@ -10,7 +10,7 @@
   let h = 0;
   let dpr = 1;
   const particles = [];
-  const COUNT = 70;
+  const COUNT = window.matchMedia('(max-width: 768px)').matches ? 28 : 70;
   const mouse = { x: 0.5, y: 0.5 };
 
   function resize() {

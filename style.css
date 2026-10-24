@@ -9,7 +9,7 @@ body {
     position: relative;
 }
 
-/* 夜空底图 + 你们的 AI 动漫合照 */
+/* 夜空底图 + 你们的 AI 动漫合照（手机用压缩版） */
 .page-bg {
     position: fixed;
     inset: 0;
@@ -21,9 +21,23 @@ body {
             rgba(40, 20, 50, 0.28) 40%,
             rgba(20, 12, 40, 0.62) 100%
         ),
-        url('assets/anime-couple.jpg') center 28% / cover no-repeat,
+        url('assets/anime-couple-mobile.jpg') center 28% / cover no-repeat,
         url('assets/bg023/bg.jpg') center top / cover no-repeat;
     pointer-events: none;
+}
+
+@media (min-width: 900px) {
+    .page-bg {
+        background:
+            linear-gradient(
+                180deg,
+                rgba(18, 10, 36, 0.35) 0%,
+                rgba(40, 20, 50, 0.28) 40%,
+                rgba(20, 12, 40, 0.62) 100%
+            ),
+            url('assets/anime-couple.jpg') center 28% / cover no-repeat,
+            url('assets/bg023/bg.jpg') center top / cover no-repeat;
+    }
 }
 
 .page-bg::after {
