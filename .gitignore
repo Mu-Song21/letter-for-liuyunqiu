@@ -1,0 +1,11 @@
+# 本地/不用上传的
+我的照片/
+_preview/
+_tmp_repack/
+*.pyc
+__pycache__/
+.DS_Store
+Thumbs.db
+debug*.png
+seq-*.png
+_ref*.html
