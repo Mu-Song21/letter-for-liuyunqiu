@@ -392,7 +392,7 @@
         return;
       }
 
-      this.setHint('点卡片即可翻转看照片');
+      this.setHint('');
       preloadPhotos(photos);
 
       this.canvas.classList.add('fade');
@@ -435,7 +435,7 @@
         });
         this.overlay.appendChild(btn);
       }
-      this.setHint('点卡片翻转看照片，准备好了再点继续');
+      this.setHint('');
     }
 
     startStage3() {
