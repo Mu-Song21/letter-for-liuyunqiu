@@ -190,20 +190,22 @@
     return pts;
   }
 
-  /** 大图 + 允许重叠的心形排布（外圈 + 内圈） */
+  /** 心形排布：手机用更大卡片 + 更疏一点，方便看清文字 */
   function layoutPhotoHeart(photos, w, h) {
     const n = photos.length;
     const minSide = Math.min(w, h);
     const isMobile = w <= 768;
-    // 手机稍小一点，减少重叠绘制压力
     const size = isMobile
-      ? Math.max(58, Math.min(88, Math.floor(minSide / 6.8)))
+      ? Math.max(72, Math.min(98, Math.floor(minSide / 5.2)))
       : Math.max(78, Math.min(120, Math.floor(minSide / 6.2)));
     const cx = w / 2;
-    const cy = h / 2 - h * 0.02;
-    const outerScale = Math.max(10, (minSide / 2 - size * 0.28) / 17);
+    const cy = h / 2 - (isMobile ? h * 0.04 : h * 0.02);
+    const outerScale = Math.max(
+      9,
+      (minSide / 2 - size * (isMobile ? 0.42 : 0.28)) / 17
+    );
 
-    const outerN = n <= 14 ? n : Math.ceil(n * 0.6);
+    const outerN = n <= 14 || isMobile ? n : Math.ceil(n * 0.6);
     const innerN = n - outerN;
     const outer = sampleHeartPointsEven(outerN, outerScale, cx, cy);
     const slots = outer.map((p) => ({ ...p, size }));
@@ -228,90 +230,18 @@
     }));
   }
 
-  const LAYOUT_KEY = 'lovePhotoLayout_v1';
-
-  function photoKey(src) {
-    return String(src).split('?')[0];
-  }
-
-  function loadSavedLayout() {
-    try {
-      return JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}') || {};
-    } catch (e) {
-      return {};
+  function noteFontSize(text, boxSize) {
+    const len = String(text || '').length;
+    if (boxSize < 75) {
+      if (len <= 8) return '0.7rem';
+      if (len <= 12) return '0.58rem';
+      if (len <= 18) return '0.5rem';
+      return '0.44rem';
     }
-  }
-
-  function saveCardPosition(src, left, top) {
-    const map = loadSavedLayout();
-    map[photoKey(src)] = { left, top };
-    localStorage.setItem(LAYOUT_KEY, JSON.stringify(map));
-  }
-
-  function enableDrag(el, src) {
-    let dragging = false;
-    let moved = false;
-    let startX = 0;
-    let startY = 0;
-    let origLeft = 0;
-    let origTop = 0;
-
-    const onDown = (clientX, clientY) => {
-      dragging = true;
-      moved = false;
-      startX = clientX;
-      startY = clientY;
-      origLeft = parseFloat(el.style.left) || 0;
-      origTop = parseFloat(el.style.top) || 0;
-      el.style.zIndex = '500';
-      el.classList.add('dragging');
-    };
-
-    const onMove = (clientX, clientY) => {
-      if (!dragging) return;
-      const dx = clientX - startX;
-      const dy = clientY - startY;
-      if (Math.abs(dx) + Math.abs(dy) > 6) moved = true;
-      el.style.left = origLeft + dx + 'px';
-      el.style.top = origTop + dy + 'px';
-    };
-
-    const onUp = () => {
-      if (!dragging) return;
-      dragging = false;
-      el.classList.remove('dragging');
-      if (moved) {
-        saveCardPosition(src, parseFloat(el.style.left), parseFloat(el.style.top));
-        el.dataset.skipClick = '1';
-      }
-    };
-
-    el.addEventListener('mousedown', (e) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      onDown(e.clientX, e.clientY);
-    });
-    window.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
-    window.addEventListener('mouseup', onUp);
-
-    el.addEventListener(
-      'touchstart',
-      (e) => {
-        const t = e.touches[0];
-        onDown(t.clientX, t.clientY);
-      },
-      { passive: true }
-    );
-    window.addEventListener(
-      'touchmove',
-      (e) => {
-        if (!dragging) return;
-        const t = e.touches[0];
-        onMove(t.clientX, t.clientY);
-      },
-      { passive: true }
-    );
-    window.addEventListener('touchend', onUp);
+    if (len <= 10) return '0.82rem';
+    if (len <= 16) return '0.7rem';
+    if (len <= 22) return '0.6rem';
+    return '0.52rem';
   }
 
   function buildFlipCard(src, note, size) {
@@ -319,7 +249,7 @@
     el.className = 'photo-heart-item';
     el.style.width = size + 'px';
     el.style.height = size + 'px';
-    el.title = '点击翻转 · 按住拖动可调整位置';
+    el.title = '点击翻转看照片';
 
     const inner = document.createElement('div');
     inner.className = 'photo-flip-inner';
@@ -327,7 +257,11 @@
     // 正面：文字；翻转后：照片
     const front = document.createElement('div');
     front.className = 'photo-face photo-front photo-note';
-    front.innerHTML = `<p class="photo-note-text">${note.text}</p>`;
+    const p = document.createElement('p');
+    p.className = 'photo-note-text';
+    p.textContent = note.text;
+    p.style.fontSize = noteFontSize(note.text, size);
+    front.appendChild(p);
 
     const back = document.createElement('div');
     back.className = 'photo-face photo-back photo-photo';
@@ -343,18 +277,28 @@
     inner.appendChild(back);
     el.appendChild(inner);
 
-    el.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (el.dataset.skipClick === '1') {
-        el.dataset.skipClick = '0';
-        return;
-      }
-      el.classList.toggle('flipped');
-      el.style.zIndex = String(200 + Math.floor(Math.random() * 50));
-    });
+    // pointer 事件：手机点击立刻翻转（不再拖动）
+    el.addEventListener(
+      'pointerup',
+      (e) => {
+        if (e.button != null && e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        el.classList.toggle('flipped');
+        el.style.zIndex = String(200 + Math.floor(Math.random() * 50));
+      },
+      { passive: false }
+    );
 
-    enableDrag(el, src);
     return el;
+  }
+
+  function preloadPhotos(urls) {
+    urls.forEach((src) => {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = src;
+    });
   }
 
   class RomanceSequence {
@@ -448,7 +392,8 @@
         return;
       }
 
-      this.setHint(`先看看这些话 · 点击翻转看她 · 按住可拖动调位置`);
+      this.setHint('点卡片即可翻转看照片');
+      preloadPhotos(photos);
 
       this.canvas.classList.add('fade');
       this.later(() => this.canvas.classList.add('hidden'), 500);
@@ -456,7 +401,6 @@
       const w = window.innerWidth;
       const h = window.innerHeight;
       const layout = layoutPhotoHeart(photos, w, h);
-      const saved = loadSavedLayout();
 
       this.photoStage.classList.add('active', 'interactive');
 
@@ -464,12 +408,8 @@
 
       layout.forEach((item, i) => {
         const el = buildFlipCard(item.src, item.note, item.size);
-        const key = photoKey(item.src);
-        const custom = saved[key];
-        const left = custom ? custom.left : item.x - item.size / 2;
-        const top = custom ? custom.top : item.y - item.size / 2;
-        el.style.left = left + 'px';
-        el.style.top = top + 'px';
+        el.style.left = item.x - item.size / 2 + 'px';
+        el.style.top = item.y - item.size / 2 + 'px';
         el.style.zIndex = String(10 + i);
         el.style.setProperty('--delay', `${i * step}ms`);
         this.photoStage.appendChild(el);
@@ -495,7 +435,7 @@
         });
         this.overlay.appendChild(btn);
       }
-      this.setHint('点击翻转 · 拖动调位置（会自动记住）· 好了再点继续');
+      this.setHint('点卡片翻转看照片，准备好了再点继续');
     }
 
     startStage3() {
