@@ -24,7 +24,7 @@
   const MAINTAIN_DISTURB = 0.3;
   const MAX_HEART_TRAIL_LENGTH = 360 * 3;
   const TRAIL_FADE_FACTOR = 0.85;
-  const TARGET_LOOPS = 1; // 一圈后交给后续阶段（照片心 / 弹窗）
+  const TARGET_LOOPS = 2; // 两圈后再进入照片心 / 弹窗
 
   function getHeartPoint(tAngle, scale, cx, cy) {
     const rad = (tAngle * Math.PI) / 180;
